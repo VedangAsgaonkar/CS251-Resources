@@ -1,0 +1,307 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage [ a4paper , margin =1.2 in , bottom =1.5 in ] { geometry }
+\usepackage [ parfill ] { parskip }
+\usepackage{ hyperref }
+\hypersetup{
+linkbordercolor={1 0 0},
+}
+\usepackage{ fancyhdr }
+\usepackage{ enumitem }
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage[linesnumbered , ruled , vlined]{algorithm2e}
+\usepackage{ listings }
+\usepackage{ xcolor }
+\usepackage{ floatrow }
+\usepackage{ graphicx }
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{caption}
+
+\newcounter{main}
+\setcounter{main}{1}
+
+\lstnewenvironment{code}[1][firstnumber=\themain,name=main]
+  {\captionsetup{
+    font ={ Large,bf},
+    justification = center,
+  }
+  \lstset{language=[LaTeX]Tex,
+        numbers=left,
+        numberstyle=\tiny\color{gray} ,
+        commentstyle=\color{green! 30 ! black! } ,
+        keywordstyle=\color{blue} \bfseries,
+        stringstyle=\color{ violet },
+        breaklines=true ,
+        #1 ,}
+}
+{\setcounter{main}{\value{lstnumber}}}
+
+
+\newcommand{\bigO}{\mathcal{O}}
+\newcommand{\leavespace}{\medskip \newline}
+\title{Outlab 2: \LaTeX~and gdb}
+\author{Prathamesh Pilkhane \& Vedang Asgaonkar}
+\date{Autumn 2021}
+
+\pagenumbering{arabic}
+\begin{document}
+
+\maketitle
+\tableofcontents
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{200050109-200050154} 
+\rhead{Software Systems Laboratory}
+\renewcommand{\footrulewidth }{1 pt }
+\cfoot{Page \thepage}
+\pagebreak
+
+
+\section{Basic Theory of Linear Recurrences}
+We all know about the Fibonacci Sequence, given by the recurrence
+\begin{equation*}
+    f_{n+2} = f_{n+1} + f_{n}
+\end{equation*}
+and initialised as $f_0 = 0,~ f_1 = 1$. This is an instance of what is called a Linear Recurrence Sequence, or LRS.
+\theoremstyle{definition}
+\newtheorem{defn}{Definition}[section]
+\begin{defn}
+\label{defn:1}
+    LRS $(u_n)_{n=0}^\infty$ of order $k$ over field $\mathbb{F}$ is the sequence determined by the recurrence
+    \begin{equation}
+        u_{n+k} = \sum_{j=0}^{k-1} a_j u_{n+j}
+    \end{equation}
+    for integers $n \ge 0$ with $a_0,\dots,a_1, \in \mathbb{F}, ~a_0 \neq 0$, and an initialization vector
+    \begin{equation*}
+    \begin{bmatrix}
+    u_0 & \dots & u_{k-1}
+    \end{bmatrix}^T \in \mathbb{F}^{k \times 1}
+    \end{equation*}
+\end{defn}
+
+
+Thanks to Definition $\ref{defn:1}$, when we say that we are given $(u_n)_{n=0}^\infty$ of order $k$ over $\mathbb{F}$, we actually mean that we are given the $2k$ constants $a_0 , \dots a_{k−1} , u_0 ,\dots , u_{k−1} \in \mathbb{F}$.
+\leavespace
+The Fibonacci sequence shows up a lot in pop culture and DSA assignments, however, the study
+of LRS is a vast subject in its own right, with applications in software verification, quantum
+computing, formal languages, statistical physics, combinatorics, and theoretical biology, to name
+a few.
+
+\subsection{Computing Terms of an LRS}
+For a fixed $k$, assuming we can do arithmetic operations in $\mathbb{F}$ in constant time, how long does it take to compute the $n^{th}$ term of a given LRS?
+
+\begin{algorithm}[ht]
+\caption{Naive first attempt $\mathsf{naive}$}
+\SetAlgoLined
+\DontPrintSemicolon
+\KwData{LRS   $(u_n)_{n=0}^{\infty} , n$}
+\KwResult{ $u_n$}
+\uIf{$n<k$}{
+\textbf{return} $u_n$ \;
+}
+\textbf{end} \;
+\textbf{return} $\Sigma_{j=0}^{k-1}a_j.\mathsf{naive}((u_n)_{n=0}^\infty,n-k+j)$ \;
+\end{algorithm}
+
+By the way, notice the use of \verbose{\textbackslash mathsf} to write "$\mathsf{naive}$". This algorithm, unfortunately, is painfully inefficient: as you can see, the number of recursive calls will be exponentially many in $n$. This immediately prompts a more “bottom-up” \footnote{Not to be confused with the drinking phrase}
+ we start from the first $k$ terms, use them to compute the next term, and iterate this way upto $n$. This takes $\bigO(n)$ iterations.
+\leavespace
+But we can do better, in fact, we only need $\bigO(log n)$ iterations\footnote{
+In complexity analysis, the base of the logarithm is implicitly taken as 2}.
+\leavespace
+Technically, even Algorithm \ref{algo:2} is inefficient: when we analyse complexity, we do it with respect to the size of the bit representation of the input, i.e. how many bits it takes to specify the input. An integer $n$ takes $\log{}(n)$ bits to represent, so the parameter for describing complexity is not $n$, but $\eta = \log{}(n)$.
+\vfill
+\begin{algorithm}[!ht]
+\caption{Bottom up dynamic programming approach $\mathsf{bottomup}$}\label{algo:2}
+\SetAlgoLined
+\DontPrintSemicolon
+\KwData{LRS   $(u_n)_{n=0}^{\infty} , n$}
+\KwResult{ $u_n$}
+\uIf{$n<k$}{
+\textbf{return} $u_n$ \;
+}
+\textbf{end} \;
+$\mathsf{circular array} \gets \{ u_0, \dots u_{k-1} \} $\;
+$\mathsf{arrayStartIndex} \gets 0$ \;
+$n_{last} \gets k-1$ \;
+\While{$n_{last}<n$}{
+$\mathsf{nextTerm} \gets \Sigma_{j=0}^{k-1} a_j.\mathsf{circularArray}[(\mathsf{arrayStartIndex} + j)]\%k$ \;
+$\mathsf{circularArray}[\mathsf{arrayStartIndex}]\gets \mathsf{nextTerm}$ \;
+$\mathsf{arrayStartIndex}\gets(\arrayStartIndex + 1)\%k$ \;
+$n_{last}\gets n_{last}+1$
+}
+\textbf{return} $\mathsf{circularArray}[(\mathsf{arrayStartIndex} + j)]\%k$
+\end{algorithm}
+\vspace{1em}
+\\
+
+Yes, we can compute the $n^{th}$ term using $\bigO(\eta)$ operations, and the trick here is a method called \textbf{iterating square}. Given an LRS $(u_n)_{n=0}^\infty$, define its companion matrix $\mathbf{M}\in\mathbb{F}^{k \times k}$ as
+\begin{equation}
+\mathsf{M}^n = \begin{bmatrix}
+0 & 1 & 0 & \dots & 0 \\
+0 & 0 & 1 & \dots & 0 \\
+\vdots & \vdots & \vdots \ddots & \vdots \\
+0 & 0 & 0 & \dots & 1 \\
+a_0 & a_1 & a_2 & \dots & a_{k-1} 
+\end{bmatrix}
+\end{equation}
+Compare equation 1 and 2 and observe that 
+\begin{equation}
+    \text{\textbf{M}}^{n} \begin{bmatrix}
+    u_0 \\
+    \vdots \\
+    u_{k-1}\\
+    \end{bmatrix} = 
+    \begin{bmatrix}
+    u_n\\
+    \vdots\\
+    u_{n+k-1} 
+    \end{bmatrix}
+\end{equation}
+Iterated squaring hinges on this ridiculously trivial observation: consider the (unique!) binary representation of $n$: if you append a 0 to it, it becomes $2n$, if you append a 1, it becomes $2n + 1$.
+\medskip
+\newline
+Given \textbf{M}, to compute \textbf{M}$^{n}$, all we have to do is start with \textbf{I}, read the binary representation of n from most to least significant: if at some point we have $\mathbf{M}^j, \mathbf{M}^j\cdot \mathbf{M}^j =\mathbf{M}^{2j}, \mathbf{M}^{2j}\cdot \mathbf{M} =\mathbf{M}^{2j+1}$ 
+\medskip
+\newline
+In Algorithm \ref{algo:3}, we use a data structure called a \textbf{stack}. The constant time operations it supports
+are
+\begin{itemize}
+    \item  pushing an element onto the top of the stack
+    \item  popping an element from the top of the stack (i.e. deleting the topmost element)
+    \item reading the topmost element
+    \item checking whether the stack is empty
+\end{itemize}
+As you can see, it’s Last In, First Out.
+\leavespace
+The division while loop gets the bits of n from least to most significant, the iterated square while loop uses the bits from most to least significant. A stack fits the bill.
+\begin{algorithm}[!h]
+\label{algo:3}
+\caption{Iterated squaring approach efficient}
+\SetAlgoLined
+\DontPrintSemicolon
+\KwData{LRS   $(u_n)_{n=0}^{\infty} , n$}
+\KwResult{ $u_n$}
+$ \mathsf{quotient} \gets n$ \;
+$ \mathsf{operationStack} \gets \{ \}$ \;
+$ \mathbf{M} \gets \mathsf{companion}({(u_n)}^{\infty}_{n=0})$\;
+$\mathbf{x} \gets \begin{bmatrix}
+u_0 & \hdots & u_k 
+\end{bmatrix} ^T$ \;
+$\mathbf{A} \gets \mathbf{I}_{k\times k} $\;
+\While{$ \mathsf{quotient} \neq 0$}{
+    $ \mathsf{push(operationStack , quotient\%2)} $\;
+    $\mathsf{quotient} \gets \mathsf{quotient}/2$\;
+}
+\While{$\mathsf{operationStack} \neq \{ \}$}{
+$\mathbf{A \gets A \cdot A} $\;
+\If{$\mathsf{top(operationStack)} = 1$}{
+$\mathbf{A \gets A\cdot M}$ \;
+}
+$\mathsf{pop(operationStack)}$\;
+}
+$\mathbf{y \gets Ax}$\;
+$\mathbf{return ~y}[0]$\;
+\end{algorithm}
+\subsection{Problems associated with LRS}
+Surprisingly, the following rather simple \textit{decision problem}\footnote{Given an arbitrary input, answer a particular question about it with Yes or No}, referred to as the Skolem problem, has been open for the last eight decades or so.
+\begin{defn}
+ (Skolem Problem) \textit{For the arbitrary LRS $(u_n)^\infty_{n=0}$ whose description is given as
+input, does there exist an integer n $\geq$ 0 such that $u_n = 0? $}
+\end{defn}
+This has a bunch of equivalent formulations, and by being open, we mean that nobody really knows of an algorithm that can decide it (the algorithm should terminate and give the correct answer for $all$ possible inputs), or whether there is such an algorithm at all. \newline
+We can also consider another related problem for LRS over fields where the $>$ operator is defined:
+
+\begin{defn}
+(Positivity problem). \textit{For the arbitrary LRS $(u_n)^\infty_{n=0}$ whose description is given
+as input, is it the case that for all integers n $\geq$ 0, $u_n \ge 0$?}
+\end{defn}
+Deciding even special cases of these problems (i.e. restricting what kind of LRS can be fed as
+input) requires sophisticated maths, like Kronecker’s theorem on Diophantine approximations, \cite{Bour}, Chap. 7, Sec. 1.3, Prop. 7
+, and profound properties of “algebraic” numbers \cite{Mig} and then some
+more mathematical arsenal \cite{Bell, Ren}.
+\leavespace
+If you found this short write up interesting, \href{https://fmindia.cmi.ac.in/update2013/presentations/S-Akshay.pdf}{here} is a survey talk about the problem, given not so
+long ago.
+\vfill
+\section{Programming}
+\begin{figure}[H]
+\begin{floatrow}
+\ffigbox [ 0.5 \textwidth ]{ \caption{Screenshot 1} } { \includegraphics [ width =0.5\textwidth ] {Sc1.png}}
+\ffigbox [ 0.5 \textwidth ]{ \caption{Screenshot 2} } { \includegraphics [ width =0.5\textwidth ] {Sc2.png}}
+\end{floatrow}
+\end{figure}
+\textbf{Outputs from gdb :}
+\begin{verbatim}
+$1 = std::vector of length 2, capacity 2 = {
+  std::vector of length 2, capacity 2 = {1, 0},
+  std::vector of length 2, capacity 2 = {0, 1}}
+\end{verbatim}
+\begin{verbatim}
+$2 = std::stack wrapping: std::deque with 10 elements = {0, 1, 1, 1, 0, 0, 0,
+  0, 0, 1}
+\end{verbatim}
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{|l|c|}
+\hline
+\textbf{operations} & \textbf{working}\\
+\hline 
+\{0,1,1,1,0,0,0,0,0,1\} \rule{0pt}{2ex} & \{1,0,0,1\}\\
+\hline 
+\{0,1,1,1,0,0,0,0,0\}&		\{0,1,1,1\}\\
+\hline 
+\{0,1,1,1,0,0,0,0\}&\{1,1,1,2\}\\
+\hline 
+\{0,1,1,1,0,0,0\}&\{2,3,3,5\}\\
+\hline 
+\{0,1,1,1,0,0\}&\{13,21,21,24\}\\
+\hline 
+\{0,1,1,1,0\}&\{610 , 987,987,1597\}\\
+\hline 
+\{0,1,1,1\}&\{1.3e6 , 2.2e6 , 2.2e6 , 3.5e6\}\\
+\hline 
+\{0,1,1\}&\{1e13 , 1.7e13 , 1.7e13 , 2.7e13\}\\
+\hline 
+\{0,1\}&\{6.5e26 , 1e27,1e27 , 1.7e27\}\\
+\hline 
+\{0\}&\{2.5e54 , 4.1e54 , 4.1e54 , 6.6e54\}\\
+\hline
+\{\}&\{2.3e109 , 3.7e109 , 6.1e109\}\\
+\hline
+\end{tabular}
+\caption{Printing the values of operations and working}
+\end{center}
+\end{table}
+\newpage
+\section{Listings}
+\begin{code}[caption= {[\LaTeX]}TeX \newline \normalsize{Algorithm Boilerplate} ~~~~~~~~~~~~~~~~~~~~~~~~ , label=list1, ]
+\documentclass{article}
+%. . .
+\usepackage[linesnumbered, ruled, vlined]{algorithm2e}
+%. . .
+\newcommand{\function}{\mathsf{function}}
+%. . .
+\begin {document}
+%. . .
+\begin {algorithm} [ht]
+\caption {...}
+\SetAlgoLined
+\DontPrintSemicolon
+\KwData {...}
+\KwResult{...}
+Statement \;
+%Let magic happen here
+$ a\gets b \cdot \function(c) \%d $ \ ;
+\end{algorithm}
+%...
+\end{document}
+\end{code}
+This is a reference to Listing \ref{list1}
+\bibliographystyle {plainurl}
+\bibliography{biblio.bib}
+\end{document}
+
