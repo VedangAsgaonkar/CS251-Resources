@@ -1,0 +1,9 @@
+https://www.unix.com/shell-programming-and-scripting/181589-awk-string-comparison.html
+https://stackoverflow.com/questions/14858182/integer-division-in-awk
+https://stackoverflow.com/questions/5808971/casting-to-int-in-awk
+https://stackoverflow.com/questions/2458346/sort-an-associative-array-in-awk
+https://www.tutorialspoint.com/awk/awk_user_defined_functions.htm
+https://gist.github.com/JKirchartz/ff4106c07fed1ae9c223b90a245241e0
+https://stackoverflow.com/questions/42108365/removing-punctuation-and-tabs-with-sed
+https://stackoverflow.com/questions/2777579/how-can-i-output-only-captured-groups-with-sed
+https://stackoverflow.com/questions/2613800/how-to-convert-dos-windows-newline-crlf-to-unix-newline-lf-in-a-bash-script
