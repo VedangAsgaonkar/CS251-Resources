@@ -1,0 +1,39 @@
+CC=g++
+CFLAGS=-I.
+
+helloword : helloword.cpp
+	$(CC) helloword.cpp -o helloword
+
+usespthread : usespthread.cpp
+	$(CC) usespthread.cpp -o usespthread -pthread
+
+libMyEngineDynamic.so : myengine/myengine.cpp myengine/myengine.hpp
+	g++ -c -fpic myengine/myengine.cpp
+	g++ -shared -o libMyEngineDynamic.so myengine.o
+
+libMyEngineStatic.a : myengine/myengine.cpp myengine/myengine.hpp
+	g++ -c -fpic myengine/myengine.cpp
+	ar rcs libMyEngineStatic.a myengine.o
+
+.PHONY: installdynamic
+
+installdynamic : libMyEngineDynamic.so myengine/myengine.hpp
+	sudo install -m 644 libMyEngineDynamic.so /usr/local/lib/ 
+	sudo install -m 644 myengine/myengine.hpp /usr/local/include/ 
+
+.PHONY: installstatic
+
+installstatic : libMyEngineStatic.a myengine/myengine.hpp
+	sudo install -m 644 libMyEngineStatic.a /usr/local/lib/ 
+	sudo install -m 644 myengine/myengine.hpp /usr/local/include/ 
+
+mygamestatic : mygame/mygame.cpp 
+	g++ mygame/mygame.cpp -lMyEngineStatic -o mygamestatic
+
+mygamedynamic : mygame/mygame.cpp 
+	g++ mygame/mygame.cpp -lMyEngineDynamic -o mygamedynamic
+
+.PHONY: clean
+
+clean:
+	rm -f *.o *.a *.so helloworld mygamedynamic mygamestatic usespthread
